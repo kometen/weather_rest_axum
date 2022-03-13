@@ -2,6 +2,7 @@ use axum::{
     async_trait,
     extract::{Extension, FromRequest, RequestParts},
     http::StatusCode,
+    response::{IntoResponse, Html, Json, Headers},
     routing::get,
     Router,
 };
@@ -11,13 +12,13 @@ use bb8_postgres::PostgresConnectionManager;
 use std::net::SocketAddr;
 use chrono::{DateTime, TimeZone, Utc};
 use dotenv::Error;
-use serde_json::Value;
+use serde::Serialize;
 use tokio_postgres::{NoTls, Row};
 use tokio_postgres::types::{Date, Timestamp, FromSql};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use rust_decimal::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct MeasurementsSingleLocation {
     id: i32,
     name: String,
@@ -67,7 +68,7 @@ async fn main() {
 
     // routes
     let app = Router::new()
-        .route("/", get(using_connection_pool_extractor).post(using_connection_pool_extractor),
+        .route("/", get(get_weather_single_location),
         )
         .layer(Extension(pool));
 
@@ -82,7 +83,7 @@ async fn main() {
 
 type ConnectionPool = Pool<PostgresConnectionManager<NoTls>>;
 
-async fn using_connection_pool_extractor(
+async fn get_weather_single_location(
     Extension(pool): Extension<ConnectionPool>,
 ) -> Result<String, (StatusCode, String)> {
     let conn = pool.get().await.map_err(internal_error)?;
@@ -98,7 +99,9 @@ async fn using_connection_pool_extractor(
         .map(|row| MeasurementsSingleLocation::try_from(&row).unwrap())
         .collect();
 
-    Ok("2".to_string())
+    let j_measurements = serde_json::to_string(&measurements).unwrap();
+
+    Ok(j_measurements.to_string())
 }
 
 fn internal_error<E>(err: E) -> (StatusCode, String)
