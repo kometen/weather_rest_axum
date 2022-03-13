@@ -1,22 +1,19 @@
 use axum::{
-    async_trait,
-    extract::{Extension, FromRequest, RequestParts},
+    extract::{Extension},
     http::StatusCode,
-    response::{IntoResponse, Html, Json, Headers},
     routing::get,
     Router,
 };
 
-use bb8::{Pool, PooledConnection};
+use bb8::{Pool};
 use bb8_postgres::PostgresConnectionManager;
 use std::net::SocketAddr;
+use axum::extract::Path;
 use chrono::{DateTime, TimeZone, Utc};
 use dotenv::Error;
 use serde::Serialize;
 use tokio_postgres::{NoTls, Row};
-use tokio_postgres::types::{Date, Timestamp, FromSql};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use rust_decimal::prelude::*;
 
 #[derive(Debug, Serialize)]
 pub struct MeasurementsSingleLocation {
@@ -68,7 +65,7 @@ async fn main() {
 
     // routes
     let app = Router::new()
-        .route("/", get(get_weather_single_location),
+        .route("/measurements/:site_id/:rows", get(get_weather_single_location),
         )
         .layer(Extension(pool));
 
@@ -84,13 +81,17 @@ async fn main() {
 type ConnectionPool = Pool<PostgresConnectionManager<NoTls>>;
 
 async fn get_weather_single_location(
+    Path((site_id, rows)): Path<(i32, i32)>,
     Extension(pool): Extension<ConnectionPool>,
 ) -> Result<String, (StatusCode, String)> {
     let conn = pool.get().await.map_err(internal_error)?;
 
+    let id = if site_id < 0 { 0 } else { site_id };
+    let r = if rows > 144 { 144 } else if rows < 0 { 0 } else { rows };
+
     println!("get rows");
     let rows= conn
-        .query("select * from measurements_single_location_function(1,10)", &[])
+        .query("select * from measurements_single_location_function($1,$2)", &[&id, &r])
         .await
         .map_err(internal_error)?;
 
