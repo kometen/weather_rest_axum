@@ -1,4 +1,4 @@
-mod repositories;
+mod controllers;
 mod models;
 mod persistence;
 
@@ -16,7 +16,7 @@ async fn main() {
     let pool = persistence::db_setup().await;
     // routes
     let app = Router::new()
-        .route("/measurements/:site_id/:rows", get(repositories::get_weather_single_location),
+        .route("/measurements/:site_id/:rows", get(controllers::get_weather_single_location),
         )
         .layer(Extension(pool));
 
