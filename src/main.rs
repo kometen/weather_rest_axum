@@ -1,5 +1,6 @@
 mod repositories;
 mod models;
+mod persistence;
 
 use axum::{
     extract::{Extension},
@@ -15,7 +16,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
+/*    dotenv::dotenv().ok();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
 
     tracing_subscriber::registry()
@@ -29,7 +30,8 @@ async fn main() {
     let manager =
         PostgresConnectionManager::new_from_stringlike(database_url, NoTls).unwrap();
     let pool = Pool::builder().build(manager).await.unwrap();
-
+*/
+    let pool = persistence::db_setup().await;
     // routes
     let app = Router::new()
         .route("/measurements/:site_id/:rows", get(repositories::get_weather_single_location),
